@@ -36,52 +36,50 @@ def _twos_comp(val : int, bits : int) -> int:
   """compute the 2's complement of int value val"""
   if (val & (1 << (bits - 1))) != 0:
     val = val - (1 << bits) 
-  return val  
-
+  return val
 
 class INA228:
   """Driver for INA228 Current Sensor"""
 
-  def __init__(self, i2c: I2C, address: int = 0x40):
+  def __init__(self, i2c: I2C, address: int = _INA2XX_DEFAULT_ADDR):
     self._i2c = i2c
     self._address = address
-    self._current_lsb = 0.0
+    self._current_lsb = 10 / (2**19)
 
-  def read_register40(self, register) -> int:
-    result_high = self._i2c.readfrom_mem(self._address, register, 4)
-    result_low = self._i2c.readfrom_mem(self._address, register + 4, 1)
+  def _read_register(self, register: int, size: int) -> int:
+    tmp = self._i2c.readfrom_mem(self._address, register, size)
+    return int.from_bytes(tmp, 'big')
 
-    register_value = (int.from_bytes(result_high, 'big') << 8) | int.from_bytes(result_low, 'big')
-    return register_value
-
-  def read_register24(self, register) -> int:
-    result = self._i2c.readfrom_mem(self._address, register, 3)
-    register_value = int.from_bytes(result, 'big')
-    return register_value
-
-  def read_register16(self, register) -> int:
-    result = self._i2c.readfrom_mem(self._address, register, 2)
-    register_value = int.from_bytes(result, 'big')
-    return register_value
-
-  def write_register16(self, register, register_value):
-    register_bytes = bytearray([(register_value >> 8) & 0xFF, register_value & 0XFF])
+  def _write_register16(self, register: int, register_value: int):
+    register_bytes = register_value.to_bytes(2, 'big')
     self._i2c.writeto_mem(self._address, register, register_bytes)
   
   def reset_all(self):
-    config = self.read_register16(_CONFIG)
+    config = self._read_register(_CONFIG, 2)
     config = config | (1 << 15) # set Reset bit
-    self.write_register16(_CONFIG, config)
+    self._write_register16(_CONFIG, config)
 
   def calibrate_shunt(self, max_current: float, shunt_ohms: float):
     self._current_lsb = max_current / (2**19)
     shunt_cal = 13107.2e6 * self._current_lsb * shunt_ohms # Assumes ADCRANGE = 0
-    self.write_register16(_SHUNTCAL, shunt_cal)
+    self._write_register16(_SHUNTCAL, int(shunt_cal))
 
-  @property
-  def current(self):
-    raw = self.read_register24(_CURRENT)
-    current = _twos_comp(raw >> 4, 20) * self._current_lsb
+  def get_current(self):
+    raw = self._read_register(_CURRENT, 3)
+    current = _twos_comp(raw >> 4, 20) #* self._current_lsb
     return current
+  
+  def get_vshunt(self):
+    raw = self._read_register(_VSHUNT, 3)
+    return _twos_comp(raw >> 4, 20)
+  
+  def get_diagnostic_flags(self):
+    return self._read_register(_DIAGALRT, 2)
+  
+  def get_manufacturer_id(self):
+    return self._read_register(_MFG_UID, 2)
+  
+  def get_device_id(self):
+    return self._read_register(_DVC_UID, 2)
 
   
