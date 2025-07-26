@@ -69,6 +69,11 @@ class INA228:
     current = _twos_comp(raw >> 4, 20) * self._current_lsb
     return current
   
+  def get_voltage(self) -> float:
+    raw = self._read_register(_VBUS, 3)
+    voltage = _twos_comp(raw >> 4, 20) * 195.3125e-6
+    return voltage
+  
   def get_vshunt(self) -> float:
     raw = self._read_register(_VSHUNT, 3)
     return _twos_comp(raw >> 4, 20)
