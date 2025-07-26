@@ -78,6 +78,12 @@ class INA228:
     raw = self._read_register(_VSHUNT, 3)
     return _twos_comp(raw >> 4, 20)
   
+  def get_die_temp(self) -> float:
+    """Returns temperature in  °C"""
+    raw = self._read_register(_DIETEMP, 2)
+    temp = _twos_comp(raw, 16) * 7.8125e-3
+    return temp
+  
   def get_diagnostic_flags(self) -> bytes:
     return self._i2c.readfrom_mem(self._address, _DIAGALRT, 2)
   
