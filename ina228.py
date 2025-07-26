@@ -73,7 +73,13 @@ class INA228:
   def reset_all(self) -> None:
     """Reset all registers to defaults. Note that a short delay of around 500ms is required after reset."""
     config = self._read_register(_CONFIG, 2)
-    config = config | (1 << 15) # set Reset bit
+    config = config | (1 << 15) # set RST bit
+    self._write_register16(_CONFIG, config)
+
+  def reset_energy(self) -> None:
+    """Reset accumulated energy readings."""
+    config = self._read_register(_CONFIG, 2)
+    config = config | (1 << 14) # set RSTACC bit
     self._write_register16(_CONFIG, config)
 
   def calibrate_shunt(self, max_current: float, shunt_ohms: float) -> None:
