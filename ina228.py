@@ -41,40 +41,66 @@ def _twos_comp(val : int, bits : int) -> int:
 class INA228:
   """Driver for INA228 Current Sensor"""
 
-  def __init__(self, i2c: I2C, address: int = _INA2XX_DEFAULT_ADDR):
+  def __init__(self,*, i2c: I2C, address: int = _INA2XX_DEFAULT_ADDR):
+    """
+    @param i2c I2C device to use
+    @param address Device address to use
+    """
     self._i2c = i2c
     self._address = address
     self._current_lsb = 10 / (2**19)
 
   def _read_register(self, register: int, size: int) -> int:
+    """
+    Read a register and convert to int
+    
+    @param register Address to read
+    @param size Size of register
+    """
     tmp = self._i2c.readfrom_mem(self._address, register, size)
     return int.from_bytes(tmp, 'big')
 
-  def _write_register16(self, register: int, register_value: int):
+  def _write_register16(self, register: int, register_value: int) -> None:
+    """
+    Write a value to a register
+
+    @param register Address to write to
+    @param register_value Value to write
+    """
     register_bytes = register_value.to_bytes(2, 'big')
     self._i2c.writeto_mem(self._address, register, register_bytes)
   
-  def reset_all(self):
+  def reset_all(self) -> None:
+    """Reset all registers to defaults. Note that a short delay of around 500ms is required after reset."""
     config = self._read_register(_CONFIG, 2)
     config = config | (1 << 15) # set Reset bit
     self._write_register16(_CONFIG, config)
 
-  def calibrate_shunt(self, max_current: float, shunt_ohms: float):
+  def calibrate_shunt(self, max_current: float, shunt_ohms: float) -> None:
+    """
+    Calibrate current readings for a given shunt resistor.
+    
+    @param max_current Maximum possible current reading
+    @param shunt_ohms Resistance of the shunt resistor
+    """
     self._current_lsb = max_current / (2**19)
     shunt_cal = 13107.2e6 * self._current_lsb * shunt_ohms # Assumes ADCRANGE = 0
     self._write_register16(_SHUNTCAL, int(shunt_cal))
 
   def get_current(self) -> float:
+    """Returns the current reading in Amps"""
     raw = self._read_register(_CURRENT, 3)
     current = _twos_comp(raw >> 4, 20) * self._current_lsb
     return current
   
   def get_voltage(self) -> float:
+    """Returns the bus voltage reading in Volts"""
     raw = self._read_register(_VBUS, 3)
     voltage = _twos_comp(raw >> 4, 20) * 195.3125e-6
     return voltage
   
-  def get_vshunt(self) -> float:
+  def get_vshunt(self) -> int:
+    """Returns the raw shunt voltage reading"""
     raw = self._read_register(_VSHUNT, 3)
     return _twos_comp(raw >> 4, 20)
   
