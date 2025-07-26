@@ -49,6 +49,7 @@ class INA228:
     self._i2c = i2c
     self._address = address
     self._current_lsb = 10 / (2**19)
+    self._adc_range = 0
 
   def _read_register(self, register: int, size: int) -> int:
     """
@@ -90,8 +91,26 @@ class INA228:
     @param shunt_ohms Resistance of the shunt resistor
     """
     self._current_lsb = max_current / (2**19)
-    shunt_cal = 13107.2e6 * self._current_lsb * shunt_ohms # Assumes ADCRANGE = 0
+    shunt_cal = 13107.2e6 * self._current_lsb * shunt_ohms
+    if self._adc_range == 1:
+      shunt_cal *= 4
     self._write_register16(_SHUNTCAL, int(shunt_cal))
+
+  def set_adc_range(self, range: int) -> None:
+    """
+    Set the ADC Range.
+
+    @param range 0 = 163.84 mV, 1 = 40.96 mV
+    """
+    config = self._read_register(_CONFIG, 2)
+    if (range != 0):
+      config |= (1 << 4)
+      self._adc_range = 1
+    else:
+      config &= ~(1 << 4)
+      self._adc_range = 0
+
+    self._write_register16(_CONFIG, config)
 
   def get_current(self) -> float:
     """Returns the current reading in Amps"""
