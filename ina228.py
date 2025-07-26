@@ -64,22 +64,22 @@ class INA228:
     shunt_cal = 13107.2e6 * self._current_lsb * shunt_ohms # Assumes ADCRANGE = 0
     self._write_register16(_SHUNTCAL, int(shunt_cal))
 
-  def get_current(self):
+  def get_current(self) -> float:
     raw = self._read_register(_CURRENT, 3)
-    current = _twos_comp(raw >> 4, 20) #* self._current_lsb
+    current = _twos_comp(raw >> 4, 20) * self._current_lsb
     return current
   
-  def get_vshunt(self):
+  def get_vshunt(self) -> float:
     raw = self._read_register(_VSHUNT, 3)
     return _twos_comp(raw >> 4, 20)
   
-  def get_diagnostic_flags(self):
-    return self._read_register(_DIAGALRT, 2)
+  def get_diagnostic_flags(self) -> bytes:
+    return self._i2c.readfrom_mem(self._address, _DIAGALRT, 2)
   
-  def get_manufacturer_id(self):
-    return self._read_register(_MFG_UID, 2)
+  def get_manufacturer_id(self) -> bytes:
+    return self._i2c.readfrom_mem(self._address, _MFG_UID, 2)
   
-  def get_device_id(self):
-    return self._read_register(_DVC_UID, 2)
+  def get_device_id(self) -> bytes:
+    return self._i2c.readfrom_mem(self._address, _DVC_UID, 2)
 
   
